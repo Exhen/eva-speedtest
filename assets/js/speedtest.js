@@ -36,8 +36,107 @@
   var API = {
     garbage: "backend/garbage.php",
     empty: "backend/empty.php",
+    ping: "backend/empty.php",
     getIP: "backend/getIP.php",
   };
+
+  /**
+   * LibreSpeed server-list 条目：server + dlURL / ulURL / pingURL / getIpURL
+   * @see https://github.com/librespeed/speedtest/blob/master/frontend/server-list.json
+   */
+  function normalizeServerOrigin(server) {
+    var s = server == null ? "" : String(server).trim();
+    if (!s) {
+      try {
+        return new URL("./", window.location.href).href;
+      } catch (e0) {
+        return String(window.location.origin || "") + "/";
+      }
+    }
+    if (s.indexOf("//") === 0) {
+      s = (typeof location !== "undefined" ? location.protocol : "https:") + s;
+    } else if (!/^https?:\/\//i.test(s)) {
+      s = "https://" + s.replace(/^\/+/, "");
+    }
+    if (s.slice(-1) !== "/") {
+      s += "/";
+    }
+    return s;
+  }
+
+  function endpointUrl(server, path) {
+    var base = normalizeServerOrigin(server);
+    var p = path == null ? "" : String(path).trim();
+    if (!p) {
+      return base.replace(/\/+$/, "") || base;
+    }
+    try {
+      return new URL(p, base).href;
+    } catch (e1) {
+      return base.replace(/\/+$/, "") + "/" + p.replace(/^\//, "");
+    }
+  }
+
+  /**
+   * 对单条 LibreSpeed 服务器做 GET ping（与 probePing 单发相同路径），超时返回失败。
+   * @param {{ server?: string, pingURL?: string, ulURL?: string }} entry
+   * @param {number} [timeoutMs=1000]
+   */
+  async function probeServerLatency(entry, timeoutMs) {
+    var limit = timeoutMs == null ? 1000 : Math.max(50, timeoutMs);
+    var pingPath =
+      entry && entry.pingURL != null
+        ? entry.pingURL
+        : entry && entry.ulURL != null
+          ? entry.ulURL
+          : "empty.php";
+    var baseUrl = endpointUrl(entry.server, pingPath);
+    var sep = baseUrl.indexOf("?") >= 0 ? "&" : "?";
+    var url = baseUrl + sep + "r=" + Math.random();
+    var ctrl = new AbortController();
+    var tid = window.setTimeout(function () {
+      ctrl.abort();
+    }, limit);
+    var t0 = performance.now();
+    try {
+      var res = await fetch(url, { method: "GET", cache: "no-store", signal: ctrl.signal });
+      if (!res.ok) {
+        return { ok: false, ms: Infinity, status: res.status };
+      }
+      await res.arrayBuffer();
+      return { ok: true, ms: performance.now() - t0, status: res.status };
+    } catch (e2) {
+      return { ok: false, ms: Infinity, error: e2 && e2.name };
+    } finally {
+      window.clearTimeout(tid);
+    }
+  }
+
+  function applyLibreSpeedEntry(entry) {
+    if (!entry || typeof entry !== "object") return;
+    var srv = entry.server;
+    var dl = entry.dlURL != null ? entry.dlURL : "garbage.php";
+    var ul = entry.ulURL != null ? entry.ulURL : "empty.php";
+    var ping = entry.pingURL != null ? entry.pingURL : ul;
+    var gip = entry.getIpURL != null ? entry.getIpURL : "getIP.php";
+    API.garbage = endpointUrl(srv, dl);
+    API.empty = endpointUrl(srv, ul);
+    API.ping = endpointUrl(srv, ping);
+    API.getIP = endpointUrl(srv, gip);
+    nervLog("applyLibreSpeedEntry", entry.name || "", API.getIP);
+  }
+
+  var DEFAULT_LIBRE_ENTRY = {
+    name: "本域 backend (PHP)",
+    server: "",
+    id: 0,
+    dlURL: "backend/garbage.php",
+    ulURL: "backend/empty.php",
+    pingURL: "backend/empty.php",
+    getIpURL: "backend/getIP.php",
+  };
+
+  applyLibreSpeedEntry(DEFAULT_LIBRE_ENTRY);
 
   var DEFAULTS = {
     /* 并发过大时 PHP 内置服务器等单线程后端会长时间卡在首个大响应，表现为下载阶段永不结束 */
@@ -163,7 +262,8 @@
       if (signal.aborted) break;
       var t0 = performance.now();
       try {
-        var pres = await fetch(API.empty + "?r=" + Math.random(), {
+        var pingUrl = API.ping || API.empty;
+        var pres = await fetch(pingUrl + "?r=" + Math.random(), {
           method: "GET",
           cache: "no-store",
           signal: signal,
@@ -476,6 +576,11 @@
   window.NervSpeedtest = {
     API: API,
     DEFAULTS: DEFAULTS,
+    DEFAULT_LIBRE_ENTRY: DEFAULT_LIBRE_ENTRY,
+    applyLibreSpeedEntry: applyLibreSpeedEntry,
+    probeServerLatency: probeServerLatency,
+    endpointUrl: endpointUrl,
+    normalizeServerOrigin: normalizeServerOrigin,
     tierDownload: tierDownload,
     tierPing: tierPing,
     combinedTier: combinedTier,

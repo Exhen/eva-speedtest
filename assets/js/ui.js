@@ -157,7 +157,9 @@
     try {
       var data = await ST.fetchIp(undefined);
       var raw = data.rawIspInfo || {};
-      if ($("ipExternal")) $("ipExternal").textContent = raw.ip || "—";
+      var ip =
+        raw.ip || data.clientIp || (typeof data.processedString === "string" ? data.processedString : "") || data.ip;
+      if ($("ipExternal")) $("ipExternal").textContent = ip || "—";
     } catch (e) {
       if (window.NervDebug && window.NervDebug.error) {
         window.NervDebug.error("loadIdentification/fetchIp", e);
@@ -170,6 +172,293 @@
 
   var LOG_KEY = "nerv_mission_log_v1";
   var BGM_KEY = "nerv_bgm_on";
+  var SERVER_PICKER_KEY = "nerv_speed_server_key";
+  /** LibreSpeed 官方列表（按 name 与本地合并时 GitHub 条目覆盖同名） */
+  var REMOTE_SERVER_LIST_URL =
+    "https://raw.githubusercontent.com/librespeed/speedtest/refs/heads/master/frontend/server-list.json";
+  /** @type {{ entry: object, probe: { ok: boolean, ms: number }, key: string }[]} */
+  var serverRows = [];
+  var serverPickerSelectedIndex = 0;
+  var serverPickerUiBound = false;
+
+  function serverEntryKey(entry) {
+    if (!entry) return "";
+    return (
+      String(entry.id == null ? "" : entry.id) +
+      "|" +
+      String(entry.server == null ? "" : entry.server) +
+      "|" +
+      String(entry.dlURL || "") +
+      "|" +
+      String(entry.ulURL || "")
+    );
+  }
+
+  function latencyTierClass(probe) {
+    if (!probe || !probe.ok) return "server-lat--bad";
+    if (probe.ms <= 120) return "server-lat--good";
+    if (probe.ms <= 350) return "server-lat--warn";
+    return "server-lat--bad";
+  }
+
+  function formatProbeMs(probe) {
+    if (probe && probe.ok && isFinite(probe.ms)) return Math.round(probe.ms) + " ms";
+    return "TIMEOUT";
+  }
+
+  function closeServerMenu() {
+    var list = $("serverPickerList");
+    var btn = $("serverPickerBtn");
+    if (list) list.hidden = true;
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  }
+
+  function updateServerPickerButton(row) {
+    var nameEl = $("serverPickerName");
+    var msEl = $("serverPickerMs");
+    var btn = $("serverPickerBtn");
+    if (!row || !nameEl || !msEl) return;
+    var entry = row.entry;
+    nameEl.textContent = (entry && entry.name) || "Server";
+    msEl.textContent = formatProbeMs(row.probe);
+    msEl.className = "server-picker-btn__ms " + latencyTierClass(row.probe);
+    if (btn) {
+      btn.setAttribute(
+        "aria-label",
+        "测速服务器：" + ((entry && entry.name) || "") + " " + formatProbeMs(row.probe)
+      );
+    }
+  }
+
+  function renderServerPickerList() {
+    var list = $("serverPickerList");
+    if (!list) return;
+    list.innerHTML = "";
+    var ix;
+    for (ix = 0; ix < serverRows.length; ix += 1) {
+      (function (idx) {
+        var row = serverRows[idx];
+        var li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.setAttribute("data-index", String(idx));
+        li.setAttribute("aria-selected", idx === serverPickerSelectedIndex ? "true" : "false");
+        var nameSpan = document.createElement("span");
+        nameSpan.className = "server-picker-li__name";
+        nameSpan.textContent = (row.entry && row.entry.name) || "Server " + idx;
+        var msSpan = document.createElement("span");
+        msSpan.className = "server-picker-li__ms " + latencyTierClass(row.probe);
+        msSpan.textContent = formatProbeMs(row.probe);
+        li.appendChild(nameSpan);
+        li.appendChild(msSpan);
+        li.addEventListener("click", function () {
+          void selectServerIndex(idx).catch(function (err) {
+            if (window.NervDebug && window.NervDebug.error) window.NervDebug.error("selectServerIndex", err);
+          });
+        });
+        list.appendChild(li);
+      })(ix);
+    }
+  }
+
+  async function selectServerIndex(ix) {
+    if (!serverRows.length) return;
+    if (ix < 0 || ix >= serverRows.length) ix = 0;
+    serverPickerSelectedIndex = ix;
+    var row = serverRows[ix];
+    try {
+      localStorage.setItem(SERVER_PICKER_KEY, row.key);
+    } catch (eSave) {
+      /* */
+    }
+    ST.applyLibreSpeedEntry(row.entry);
+    updateServerPickerButton(row);
+    renderServerPickerList();
+    closeServerMenu();
+    await loadIdentification();
+  }
+
+  function bindServerPickerUiOnce() {
+    if (serverPickerUiBound) return;
+    serverPickerUiBound = true;
+    var btn = $("serverPickerBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      if (btn.disabled || !serverRows.length) return;
+      var list = $("serverPickerList");
+      if (!list) return;
+      if (!list.hidden) {
+        closeServerMenu();
+        return;
+      }
+      renderServerPickerList();
+      list.hidden = false;
+      btn.setAttribute("aria-expanded", "true");
+    });
+    document.addEventListener(
+      "pointerdown",
+      function (ev) {
+        var shell = $("serverPickerShell");
+        var list = $("serverPickerList");
+        if (!shell || !list || list.hidden) return;
+        if (!shell.contains(ev.target)) closeServerMenu();
+      },
+      true
+    );
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Escape") return;
+      var list = $("serverPickerList");
+      if (list && !list.hidden) {
+        ev.preventDefault();
+        closeServerMenu();
+      }
+    });
+  }
+
+  function serverListDedupeNameKey(entry, idxForFallback) {
+    var n = entry && entry.name != null ? String(entry.name).trim() : "";
+    return n || "__noname:" + (entry && entry.id != null ? String(entry.id) : String(idxForFallback));
+  }
+
+  /**
+   * 先按 GitHub 列表顺序输出（同名以 GitHub 为准），再追加「仅本地存在」的条目。
+   */
+  function mergeServerLists(githubList, localList) {
+    var g = Array.isArray(githubList) ? githubList : [];
+    var L = Array.isArray(localList) ? localList : [];
+    var merged = Object.create(null);
+    var ghKeyOrder = [];
+    var ghSeen = Object.create(null);
+    var i;
+    for (i = 0; i < L.length; i += 1) {
+      var el = L[i];
+      if (el && typeof el === "object") merged[serverListDedupeNameKey(el, i)] = el;
+    }
+    for (i = 0; i < g.length; i += 1) {
+      var eg = g[i];
+      if (!eg || typeof eg !== "object") continue;
+      var kg = serverListDedupeNameKey(eg, i);
+      merged[kg] = eg;
+      if (!ghSeen[kg]) {
+        ghSeen[kg] = true;
+        ghKeyOrder.push(kg);
+      }
+    }
+    var out = [];
+    for (i = 0; i < ghKeyOrder.length; i += 1) {
+      out.push(merged[ghKeyOrder[i]]);
+    }
+    for (i = 0; i < L.length; i += 1) {
+      var el2 = L[i];
+      if (!el2 || typeof el2 !== "object") continue;
+      var kl = serverListDedupeNameKey(el2, i);
+      if (!ghSeen[kl]) out.push(merged[kl]);
+    }
+    return out;
+  }
+
+  async function fetchJsonWithTimeout(url, timeoutMs) {
+    var limit = timeoutMs == null ? 3000 : Math.max(200, timeoutMs);
+    var ctrl = new AbortController();
+    var tid = window.setTimeout(function () {
+      ctrl.abort();
+    }, limit);
+    try {
+      var res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } finally {
+      window.clearTimeout(tid);
+    }
+  }
+
+  function serverListFetchUrl() {
+    try {
+      var q = new URLSearchParams(location.search || "");
+      var override = q.get("server_list");
+      if (override) {
+        try {
+          return decodeURIComponent(override);
+        } catch (eDec) {
+          return override;
+        }
+      }
+    } catch (e0) {
+      /* */
+    }
+    try {
+      return new URL("server-list.json", window.location.href).href;
+    } catch (e1) {
+      return "server-list.json";
+    }
+  }
+
+  async function loadServerList() {
+    var btn = $("serverPickerBtn");
+    var nameEl = $("serverPickerName");
+    var msEl = $("serverPickerMs");
+    if (!btn) return;
+    bindServerPickerUiOnce();
+    btn.disabled = true;
+    closeServerMenu();
+    if (nameEl) nameEl.textContent = "CONNECTIVITY / 连通検査中…";
+    if (msEl) {
+      msEl.textContent = "…";
+      msEl.className = "server-picker-btn__ms server-lat--warn";
+    }
+    var githubList = null;
+    try {
+      githubList = await fetchJsonWithTimeout(REMOTE_SERVER_LIST_URL, 3000);
+      if (!Array.isArray(githubList)) githubList = [];
+    } catch (eGh) {
+      if (window.NervDebug && window.NervDebug.log) window.NervDebug.log("server-list remote (3s) skip", eGh);
+      githubList = null;
+    }
+    var localList = [];
+    try {
+      var resL = await fetch(serverListFetchUrl(), { cache: "no-store" });
+      if (!resL.ok) throw new Error("HTTP " + resL.status);
+      localList = await resL.json();
+      if (!Array.isArray(localList) || localList.length === 0) throw new Error("empty local server list");
+    } catch (eLoc) {
+      if (window.NervDebug && window.NervDebug.error) window.NervDebug.error("loadServerList local", eLoc);
+      localList = [ST.DEFAULT_LIBRE_ENTRY];
+    }
+    var gh = Array.isArray(githubList) ? githubList : [];
+    var list = mergeServerLists(gh, localList);
+    if (!list.length) list = [ST.DEFAULT_LIBRE_ENTRY];
+    var probes = await Promise.all(
+      list.map(function (entry) {
+        return ST.probeServerLatency(entry, 1000);
+      })
+    );
+    serverRows = list.map(function (entry, i) {
+      return { entry: entry, probe: probes[i], key: serverEntryKey(entry) };
+    });
+    serverRows.sort(function (a, b) {
+      if (a.probe.ok && !b.probe.ok) return -1;
+      if (!a.probe.ok && b.probe.ok) return 1;
+      if (!a.probe.ok && !b.probe.ok) return 0;
+      return a.probe.ms - b.probe.ms;
+    });
+    var savedKey = "";
+    try {
+      savedKey = localStorage.getItem(SERVER_PICKER_KEY) || "";
+    } catch (e3) {
+      /* */
+    }
+    var defaultIx = 0;
+    if (savedKey) {
+      var j;
+      for (j = 0; j < serverRows.length; j += 1) {
+        if (serverRows[j].key === savedKey) {
+          defaultIx = j;
+          break;
+        }
+      }
+    }
+    btn.disabled = false;
+    await selectServerIndex(defaultIx);
+  }
 
   function readLog() {
     try {
@@ -285,6 +574,11 @@
   async function runTest() {
     var ND = window.NervDebug;
     if (ND && ND.log) ND.log("runTest begin");
+    var serverBtn = $("serverPickerBtn");
+    if (serverBtn) {
+      serverBtn.disabled = true;
+      closeServerMenu();
+    }
     controller = new AbortController();
     var signal = controller.signal;
     /* ping 耗时未定时：先给宽松上限，ping 结束后收紧为 dl+ul */
@@ -425,6 +719,7 @@
         setRunStatus("STATUS: ERROR / 異常");
       }
     } finally {
+      if (serverBtn) serverBtn.disabled = false;
       goalPhase = "off";
       chartCapturePhase = "off";
       /* 非用户中止时一律收满进度条，避免上传失败/异常时永远停在 52% */
@@ -581,6 +876,10 @@
       });
     }
     applyRateUnitUi();
+
+    void loadServerList().catch(function (err) {
+      if (window.NervDebug && window.NervDebug.error) window.NervDebug.error("loadServerList", err);
+    });
 
     initBgm();
 

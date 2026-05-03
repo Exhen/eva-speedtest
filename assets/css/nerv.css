@@ -656,6 +656,132 @@ body.nerv-danger-flash {
   min-width: 200px;
 }
 
+.server-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: min(100%, 22rem);
+}
+
+.server-picker-label {
+  font-family: var(--font-display), var(--font-han), sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: var(--accent-orange);
+  white-space: nowrap;
+}
+
+.server-picker-shell {
+  position: relative;
+  width: 100%;
+}
+
+.server-picker-btn {
+  width: 100%;
+  min-height: 2.05rem;
+  padding: 0.3rem 0.45rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-han), var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-primary);
+  background: #0d0d0d;
+  border: 1px solid var(--accent-orange-dim);
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.server-picker-btn__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-picker-btn__ms {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.62rem;
+}
+
+.server-lat--good {
+  color: var(--accent-cyan);
+}
+
+.server-lat--warn {
+  color: var(--status-caution);
+}
+
+.server-lat--bad {
+  color: var(--status-danger);
+}
+
+.server-picker-btn:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
+}
+
+.server-picker-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.server-picker-btn[aria-expanded="true"] {
+  border-color: var(--accent-orange);
+}
+
+.server-picker-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  z-index: 80;
+  margin: 0;
+  padding: 0.2rem 0;
+  list-style: none;
+  max-height: min(50vh, 280px);
+  overflow-y: auto;
+  background: #080808;
+  border: 1px solid var(--accent-orange-dim);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+}
+
+.server-picker-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+  font-family: var(--font-han), var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-primary);
+}
+
+.server-picker-list li:hover,
+.server-picker-list li[aria-selected="true"] {
+  background: rgba(255, 102, 0, 0.12);
+}
+
+.server-picker-list .server-picker-li__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.server-picker-list .server-picker-li__ms {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .unit-picker {
   display: flex;
   gap: 0.5rem;

@@ -49,6 +49,25 @@
           <button type="button" id="lightCaution" class="light light--caution" aria-pressed="false">CAUTION</button>
           <button type="button" id="lightDanger" class="light light--danger" aria-pressed="false">DANGER</button>
         </div>
+        <div class="server-picker-wrap">
+          <label class="server-picker-label" id="serverPickerLabelMain" for="serverPickerBtn">SERVER / サーバ</label>
+          <div class="server-picker-shell" id="serverPickerShell">
+            <button
+              type="button"
+              id="serverPickerBtn"
+              class="server-picker-btn"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="serverPickerList"
+              disabled
+              aria-label="测速服务器"
+            >
+              <span class="server-picker-btn__name" id="serverPickerName">…</span>
+              <span class="server-picker-btn__ms server-lat--bad" id="serverPickerMs" aria-hidden="true">—</span>
+            </button>
+            <ul id="serverPickerList" class="server-picker-list" role="listbox" hidden></ul>
+          </div>
+        </div>
         <div class="unit-picker">
           <button
             type="button"
