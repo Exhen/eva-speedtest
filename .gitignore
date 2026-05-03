@@ -1,0 +1,26 @@
+# 操作系统
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# 编辑器 / IDE（保留团队共享的 .vscode 配置时，可只忽略本地缓存）
+.vscode/chrome-dev-cors/
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+
+# Node（若日后加工具链）
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# PHP / Composer（若使用）
+vendor/
+
+# 日志与临时文件
+*.log
+*.tmp
+*.temp

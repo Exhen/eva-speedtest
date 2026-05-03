@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SPEED DIAGNOSTIC SYSTEM / 回線速度診断システム</title>
+    <link rel="stylesheet" href="assets/css/nerv.css" />
+  </head>
+  <body>
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="side-gutters" aria-hidden="true"></div>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="crt-vignette" aria-hidden="true"></div>
+
+    <div id="bootOverlay" class="boot-overlay" aria-live="polite">
+      <div id="bootText" class="boot-text"></div>
+      <div id="bootLogo" class="boot-logo" aria-hidden="true">
+        <div class="boot-logo-stack">
+          <img src="logo.svg" alt="NERV" />
+          <div class="boot-classified-bar">
+            <div class="boot-classified-strip" aria-hidden="true"></div>
+            <div class="boot-classified-label">机密</div>
+            <div class="boot-classified-strip" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app" id="app">
+      <header class="panel top-bar" id="topPanel">
+        <div class="brand">
+          <img src="logo.svg" alt="" width="48" height="48" />
+          <div>
+            <h1>SPEED DIAGNOSTIC</h1>
+            <span class="jp">回線速度診断システム</span>
+          </div>
+        </div>
+        <div class="timer-block">
+          <div class="label-row">
+            <span class="en">MISSION TIMER / 任務計時</span>
+          </div>
+          <div id="missionTimer" class="digital-timer">00:00.000</div>
+        </div>
+        <div class="boot-status" id="runStatus">BOOT STATUS: STANDBY / 待機</div>
+      </header>
+
+      <div class="bottom-bar" id="bottomBar" role="toolbar" aria-label="测速控制">
+        <div class="status-lights" role="group" aria-label="状态等级（手动） / STATUS TIER">
+          <button type="button" id="lightNormal" class="light light--normal" aria-pressed="false">NORMAL</button>
+          <button type="button" id="lightCaution" class="light light--caution" aria-pressed="false">CAUTION</button>
+          <button type="button" id="lightDanger" class="light light--danger" aria-pressed="false">DANGER</button>
+        </div>
+        <div class="unit-picker">
+          <button
+            type="button"
+            id="btnUnitCycle"
+            class="light light--unit-mbps active"
+            aria-label="速率单位：Mbps，点击切换"
+          >
+            Mbps
+          </button>
+        </div>
+        <button type="button" class="btn-main" id="btnPrimary">START / 開始</button>
+      </div>
+
+      <div class="panel goal-row" id="goalPanel">
+        <span class="en" style="white-space: nowrap">GOAL / 進捗</span>
+        <div class="goal-bar" aria-hidden="true">
+          <div id="goalFill" class="goal-bar-fill"></div>
+        </div>
+        <span id="goalPct" class="goal-pct">0%</span>
+      </div>
+
+      <main class="main-grid">
+        <div class="left-stack">
+          <section class="panel" id="heroPanel">
+            <div class="hazard-strip" aria-hidden="true"></div>
+            <div class="sync-download-row">
+            <div class="gauge-wrap" style="position: relative">
+              <div class="label-row" style="align-items: center; width: 100%">
+                <span class="en">SYNCHRONIZATION RATE / 同步率</span>
+              </div>
+              <div class="sync-evaviz">
+                <canvas id="syncWaveCanvas" width="640" height="320" aria-hidden="true"></canvas>
+                <div id="syncReadout" class="sync-readout sync-readout--danger" aria-label="同步率">
+                  <span class="sync-readout__label">同步率 </span><span id="syncReadoutDigits" class="sync-readout__digits">0.0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="download-hero">
+              <div class="label-row">
+                <span class="en">DOWNLOAD / 下り速度</span>
+              </div>
+              <div id="dlMain" class="value">0.00</div>
+              <div class="sub">
+                <span id="dlUnit">Mbps</span> — CURR / PEAK / AVG:
+                <span id="dlSub">0 / 0 / 0</span>
+              </div>
+            </div>
+            </div>
+          </section>
+
+          <section class="panel chart-panel" id="chartPanel">
+            <div class="hazard-strip" aria-hidden="true"></div>
+            <div class="label-row" style="padding: 0 0.5rem">
+              <span class="en">LIVE THROUGHPUT / リアルタイム転送</span>
+            </div>
+            <canvas id="chartCanvas" width="1200" height="400" aria-label="实时速率曲线"></canvas>
+          </section>
+
+          <section class="panel metrics-row" id="metricsPanel">
+            <div class="metric">
+              <div class="label-row">
+                <span class="en">UPLOAD / 上り速度</span>
+              </div>
+              <div id="ulMain" class="num">0.00</div>
+              <div class="sub" style="font-size: 0.65rem; color: var(--text-mute)">
+                <span id="ulSub">0 / 0 / 0</span>
+              </div>
+            </div>
+            <div class="metric">
+              <div class="label-row">
+                <span class="en">PING / 応答</span>
+              </div>
+              <div id="pingMain" class="num">—</div>
+              <div class="sub" style="font-size: 0.65rem; color: var(--text-mute)">
+                MIN / MAX / JITTER: <span id="pingSub">—</span>
+              </div>
+            </div>
+            <div class="metric">
+              <div class="label-row">
+                <span class="en">JITTER / 揺らぎ</span>
+              </div>
+              <div id="jitterMain" class="num">—</div>
+              <div class="sub" style="font-size: 0.65rem; color: var(--text-mute)">ms</div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="right-stack">
+          <section class="panel sys-block" id="sysPanel">
+            <div class="hazard-strip" aria-hidden="true"></div>
+            <div class="label-row">
+              <span class="en">SYSTEM IDENTIFICATION / 端末識別</span>
+            </div>
+            <div class="sys-ident-grid" role="group" aria-label="终端识别">
+              <span class="k">EXTERNAL IP / 外部 IP</span>
+              <span id="ipExternal" class="sys-ident-val">———</span>
+              <span class="k">USER AGENT / 浏览器 UA</span>
+              <span id="browserUa" class="sys-ident-val">———</span>
+            </div>
+          </section>
+
+          <section class="panel log-block" id="logPanel" style="position: relative">
+            <div class="binary-rail" id="binaryRail" aria-hidden="true"></div>
+            <div class="label-row">
+              <span class="en">MISSION LOG / 任務記録</span>
+            </div>
+            <div id="missionLog" class="log-list" aria-live="polite"></div>
+            <div class="log-actions">
+              <button type="button" class="btn-ghost" id="btnClearLog">CLEAR LOG / ログ消去</button>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <p class="footer-note">
+        God's in his heaven. All's right with the world.
+      </p>
+    </div>
+
+    <script src="assets/js/boot.js" defer></script>
+    <script src="assets/js/chart.js" defer></script>
+    <script src="assets/js/sync-wave.js" defer></script>
+    <script src="assets/js/speedtest.js" defer></script>
+    <script src="assets/js/ui.js" defer></script>
+  </body>
+</html>
