@@ -169,6 +169,7 @@
   }
 
   var LOG_KEY = "nerv_mission_log_v1";
+  var BGM_KEY = "nerv_bgm_on";
 
   function readLog() {
     try {
@@ -444,6 +445,80 @@
     }
   }
 
+  /** 默认开启；仅当 localStorage 为 "0" 时表示用户曾关闭 */
+  function isBgmPreferredOn() {
+    try {
+      return localStorage.getItem(BGM_KEY) !== "0";
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function setBgmPreferredOn(on) {
+    try {
+      if (on) localStorage.removeItem(BGM_KEY);
+      else localStorage.setItem(BGM_KEY, "0");
+    } catch (e) {
+      /* */
+    }
+  }
+
+  function applyBgmButtonUi(on) {
+    var btn = $("btnBgmToggle");
+    if (!btn) return;
+    btn.classList.toggle("light--bgm-on", on);
+    btn.classList.toggle("light--bgm-off", !on);
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    if (on) {
+      btn.textContent = "BGM ON";
+      btn.setAttribute("aria-label", "背景音乐：开启，点击关闭");
+    } else {
+      btn.textContent = "BGM OFF";
+      btn.setAttribute("aria-label", "背景音乐：关闭，点击开启");
+    }
+  }
+
+  function initBgm() {
+    var audio = $("bgmAudio");
+    var btn = $("btnBgmToggle");
+    if (!audio || !btn) return;
+    try {
+      audio.volume = 0.65;
+    } catch (e1) {
+      /* */
+    }
+    var preferred = isBgmPreferredOn();
+    applyBgmButtonUi(preferred);
+    if (preferred) {
+      var tryPlay = function () {
+        audio.play().catch(function () {
+          /* 策略拦截时静默失败，用户可再点 BGM */
+        });
+      };
+      var once = function () {
+        if (!audio.paused) return;
+        tryPlay();
+        document.removeEventListener("pointerdown", once, true);
+      };
+      document.addEventListener("pointerdown", once, true);
+    }
+    btn.addEventListener("click", function () {
+      var wantOn = audio.paused;
+      if (wantOn) {
+        setBgmPreferredOn(true);
+        applyBgmButtonUi(true);
+        audio.play().catch(function (e2) {
+          if (window.NervDebug && window.NervDebug.error) window.NervDebug.error("bgm play", e2);
+        });
+      } else {
+        setBgmPreferredOn(false);
+        applyBgmButtonUi(false);
+        audio.pause();
+      }
+    });
+  }
+
   function init() {
     window.addEventListener("error", function (ev) {
       console.error(
@@ -504,6 +579,8 @@
       });
     }
     applyRateUnitUi();
+
+    initBgm();
 
     $("btnPrimary").addEventListener("click", function () {
       var mode = $("btnPrimary").dataset.mode || "start";

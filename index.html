@@ -59,6 +59,15 @@
           >
             Mbps
           </button>
+          <button
+            type="button"
+            id="btnBgmToggle"
+            class="light light--bgm-on active"
+            aria-pressed="true"
+            aria-label="背景音乐：开启，点击关闭"
+          >
+            BGM ON
+          </button>
         </div>
         <button type="button" class="btn-main" id="btnPrimary">START / 開始</button>
       </div>
@@ -168,6 +177,10 @@
         God's in his heaven. All's right with the world.
       </p>
     </div>
+
+    <audio id="bgmAudio" preload="metadata" loop playsinline>
+      <source src="assets/aac/Decisive%20Battle.aac" type="audio/aac" />
+    </audio>
 
     <script src="assets/js/boot.js" defer></script>
     <script src="assets/js/chart.js" defer></script>

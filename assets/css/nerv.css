@@ -343,6 +343,13 @@ body.nerv-danger-flash {
   padding: 0.35rem 0.5rem;
 }
 
+.goal-row .en {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--accent-orange);
+}
+
 .goal-bar {
   flex: 1;
   height: 14px;
@@ -671,6 +678,14 @@ button.light:focus-visible {
 }
 
 .light.light--unit-mbs {
+  color: var(--accent-cyan);
+}
+
+.light.light--bgm-off {
+  color: var(--text-mute);
+}
+
+.light.light--bgm-on {
   color: var(--accent-cyan);
 }
 
