@@ -1,6 +1,8 @@
 # EVA Nerv Speedtest
 
-![](assets\preview.png)
+## Demo
+
+![preview](assets/preview.png)
 
 
 ## How to use
