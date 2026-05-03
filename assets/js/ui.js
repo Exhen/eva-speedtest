@@ -295,7 +295,7 @@
     syncGaugeSmoothed = 0;
     if (chart) chart.clear();
     setPrimary("abort");
-    setRunStatus("BOOT STATUS: TESTING / 測定中");
+    setRunStatus("STATUS: TESTING / 測定中");
     setGoal(0);
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(loopFrame);
@@ -409,20 +409,20 @@
         tier: verdictTier,
       });
 
-      setRunStatus("BOOT STATUS: COMPLETE / 完了");
+      setRunStatus("STATUS: COMPLETE / 完了");
       if (ND && ND.log) ND.log("runTest complete verdictTier=", verdictTier, "uiTier=", uiTier);
     } catch (e) {
       if (e && e.name === "AbortError") {
         testAborted = true;
         if (ND && ND.log) ND.log("runTest aborted by user");
-        setRunStatus("BOOT STATUS: ABORTED / 中止");
+        setRunStatus("STATUS: ABORTED / 中止");
       } else {
         if (window.NervDebug && window.NervDebug.error) {
           window.NervDebug.error("runTest", e);
         } else {
           console.error("[NERV runTest]", e);
         }
-        setRunStatus("BOOT STATUS: ERROR / 異常");
+        setRunStatus("STATUS: ERROR / 異常");
       }
     } finally {
       goalPhase = "off";
@@ -488,21 +488,23 @@
     } catch (e1) {
       /* */
     }
-    var preferred = isBgmPreferredOn();
-    applyBgmButtonUi(preferred);
-    if (preferred) {
-      var tryPlay = function () {
-        audio.play().catch(function () {
-          /* 策略拦截时静默失败，用户可再点 BGM */
-        });
-      };
-      var once = function () {
-        if (!audio.paused) return;
-        tryPlay();
-        document.removeEventListener("pointerdown", once, true);
-      };
-      document.addEventListener("pointerdown", once, true);
+    applyBgmButtonUi(isBgmPreferredOn());
+
+    function tryPlayBgmAfterBoot() {
+      if (!isBgmPreferredOn()) return;
+      audio.play().catch(function () {
+        var once = function () {
+          if (!audio.paused) return;
+          audio.play().catch(function () {
+            /* */
+          });
+          document.removeEventListener("pointerdown", once, true);
+        };
+        document.addEventListener("pointerdown", once, true);
+      });
     }
+
+    window.addEventListener("nervbootdone", tryPlayBgmAfterBoot, false);
     btn.addEventListener("click", function () {
       var wantOn = audio.paused;
       if (wantOn) {

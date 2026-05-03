@@ -234,7 +234,7 @@ Ping 三档：
 
 ### 7.4 主屏分区（1920×1080 基线）
 
-- **顶部条 (高 80px)**：左侧 NERV LOGO + `NERV SPEED DIAGNOSTIC SYSTEM / 回線速度診断システム`，右侧 `MISSION TIMER` 与 `BOOT STATUS`
+- **顶部条 (高 80px)**：左侧 NERV LOGO + `NERV SPEED DIAGNOSTIC SYSTEM / 回線速度診断システム`，右侧 `MISSION TIMER` 与 `STATUS`
 - **左主区 (宽 1180px)**
   - 顶部：`SYNCHRONIZATION RATE / 同步率` 扇形仪表 + 当前下载速率超大字号
   - 中部：实时折线图（FR-06）
@@ -280,7 +280,7 @@ flowchart TB
     subgraph TopBar [TOP BAR  顶部条]
         Logo[NERV Logo + Title]
         Timer[Mission Timer]
-        BootStatus[Boot Status]
+        BootStatus[STATUS]
     end
 
     subgraph MainArea [MAIN AREA  主区]

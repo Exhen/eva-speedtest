@@ -8,6 +8,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Eva Ming SC";
+  src: url("../font/Eva-Ming-SC-v0.1.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* 主内容区目标宽度；宽屏时左右留白展示侧栏背景 */
   --layout-max: 800px;
@@ -33,6 +41,8 @@
   );
   --font-display: Impact, "Arial Narrow", "Franklin Gothic Medium", system-ui, sans-serif;
   --font-body: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* 汉字（CJK 表意文字等）：由页面文案子集生成的 Eva-Ming-SC WOFF，置于各栈首 */
+  --font-han: "Eva Ming SC", serif;
   --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
   /* 仅用于任务计时、主速率、同步率数字等纯数字展示 */
   --font-lcd: "True LCD NGE", "JetBrains Mono", Consolas, monospace;
@@ -65,18 +75,13 @@ body {
   min-height: 100vh;
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: var(--font-body);
+  font-family: var(--font-han), var(--font-body);
   overflow-x: hidden;
 }
 
+/* DANGER 档：仅静态内描边，避免整视口 1Hz 闪烁造成「外侧闪」观感 */
 body.nerv-danger-flash {
-  animation: nervFlash 1s step-end infinite;
-}
-
-@keyframes nervFlash {
-  50% {
-    box-shadow: inset 0 0 0 3px var(--status-danger);
-  }
+  box-shadow: inset 0 0 0 2px rgba(255, 26, 26, 0.42);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -153,7 +158,8 @@ body.nerv-danger-flash {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: calc(max(0px, (100vw - var(--layout-max)) / 2));
+  /* 用 100% 替代 100vw，避免滚动条显隐时 vw 跳变导致左右 gutter 宽度抖动 */
+  width: max(0px, calc((100% - var(--layout-max)) / 2));
   background:
     radial-gradient(ellipse 100% 70% at 50% 40%, rgba(255, 38, 26, 0.14) 0%, transparent 60%),
     repeating-linear-gradient(
@@ -196,7 +202,7 @@ body.nerv-danger-flash {
 }
 
 .jp {
-  font-family: var(--font-jp);
+  font-family: var(--font-han), var(--font-jp);
   color: var(--text-jp);
   font-weight: 600;
   font-size: 0.72em;
@@ -211,7 +217,7 @@ body.nerv-danger-flash {
 }
 
 .label-row .en {
-  font-family: var(--font-display);
+  font-family: var(--font-display), var(--font-han), sans-serif;
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   color: var(--accent-orange);
@@ -266,7 +272,7 @@ body.nerv-danger-flash {
 
 .top-bar {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 1rem;
   min-height: 72px;
@@ -298,6 +304,7 @@ body.nerv-danger-flash {
 .timer-block {
   text-align: right;
   min-width: 200px;
+  justify-self: end;
 }
 
 .timer-block .en {
@@ -313,11 +320,18 @@ body.nerv-danger-flash {
 }
 
 .boot-status {
-  font-family: var(--font-body);
+  font-family: var(--font-han), var(--font-body);
   font-size: 0.7rem;
   color: var(--text-mute);
-  text-align: right;
-  max-width: 220px;
+}
+
+/* 下载区：STATUS 在 CURR/PEAK/AVG 行下方，与等宽副行左对齐 */
+.download-hero__status {
+  margin-top: 0.4rem;
+  width: 100%;
+  max-width: none;
+  text-align: left;
+  line-height: 1.35;
 }
 
 /* 仅外层：主栏与侧栏上下排列；各区块内部布局不变 */
@@ -334,6 +348,7 @@ body.nerv-danger-flash {
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .goal-row {
@@ -344,7 +359,7 @@ body.nerv-danger-flash {
 }
 
 .goal-row .en {
-  font-family: var(--font-display);
+  font-family: var(--font-display), var(--font-han), sans-serif;
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   color: var(--accent-orange);
@@ -428,7 +443,7 @@ body.nerv-danger-flash {
   transform: translateX(-50%);
   margin: 0;
   padding: 0.2rem 0.55rem 0.25rem;
-  font-family: var(--font-body);
+  font-family: var(--font-han), var(--font-body);
   font-variant-numeric: tabular-nums;
   font-size: clamp(0.95rem, 3.2vw, 1.2rem);
   font-weight: 600;
@@ -537,11 +552,35 @@ body.nerv-danger-flash {
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .sys-block,
 .log-block {
   padding: 0.5rem 0.6rem;
+}
+
+.sys-block {
+  flex-shrink: 0;
+}
+
+/* MISSION LOG 区占满右侧栏剩余高度，列表区可纵向滚动 */
+.log-block {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.log-block > .label-row {
+  flex-shrink: 0;
+}
+
+.log-block > .log-actions {
+  flex-shrink: 0;
+  margin-top: 0.35rem;
 }
 
 /* 两行两列：左标签、右数值；长 UA 仅在右列换行 */
@@ -557,7 +596,7 @@ body.nerv-danger-flash {
 }
 
 .sys-ident-grid .k {
-  font-family: var(--font-body);
+  font-family: var(--font-han), var(--font-body);
   color: var(--text-mute);
   white-space: nowrap;
 }
@@ -576,12 +615,14 @@ body.nerv-danger-flash {
 }
 
 .log-list {
-  font-family: var(--font-mono);
+  font-family: var(--font-han), var(--font-mono);
   font-size: 0.68rem;
   line-height: 1.35;
-  margin: 0.35rem 0;
+  margin: 0.35rem 0 0;
   color: var(--text-mute);
-  /* 随条目增高，不使用内部纵向滚动条（条目数由脚本上限控制） */
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .log-list div {
@@ -634,7 +675,7 @@ body.nerv-danger-flash {
   text-align: center;
   padding: 0.35rem 0.25rem;
   border: 1px solid #333;
-  font-family: var(--font-display);
+  font-family: var(--font-display), var(--font-han), sans-serif;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   opacity: 0.35;
@@ -690,7 +731,7 @@ button.light:focus-visible {
 }
 
 .btn-main {
-  font-family: var(--font-display);
+  font-family: var(--font-display), var(--font-han), sans-serif;
   letter-spacing: 0.15em;
   padding: 0.55rem 1.4rem;
   border: 2px solid var(--accent-orange);
@@ -713,7 +754,7 @@ button.light:focus-visible {
 }
 
 .btn-ghost {
-  font-family: var(--font-mono);
+  font-family: var(--font-han), var(--font-mono);
   font-size: 0.7rem;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--text-mute);
@@ -732,7 +773,7 @@ button.light:focus-visible {
   color: var(--text-mute);
   text-align: center;
   margin-top: 0.35rem;
-  font-family: var(--font-body);
+  font-family: var(--font-han), var(--font-body);
 }
 
 .boot-overlay {
@@ -741,7 +782,7 @@ button.light:focus-visible {
   z-index: 200;
   background: #000;
   color: var(--accent-orange);
-  font-family: var(--font-mono);
+  font-family: var(--font-han), var(--font-mono);
   padding: 2rem;
   display: flex;
   flex-direction: column;
@@ -785,27 +826,57 @@ button.light:focus-visible {
 }
 
 .boot-logo.boot-logo--fullscreen .boot-logo-stack {
+  /* 与下方 img 共用列宽，机密条与之对齐 */
+  --boot-logo-col-w: min(48vw, 420px);
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2.35rem;
-  max-width: min(90vw, 480px);
+  max-width: min(96vw, 85rem);
   animation: boot-logo-film 2.85s ease-in-out forwards;
 }
 
+/* 全屏 logo 背后：静态淡红光晕（无动画） */
+.boot-logo.boot-logo--fullscreen .boot-logo-stack::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  transform: translate(-50%, -50%);
+  width: min(120%, 520px);
+  height: min(42vh, 360px);
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 52% 48% at 50% 50%,
+    rgba(255, 70, 60, 0.2) 0%,
+    rgba(255, 35, 30, 0.08) 48%,
+    transparent 72%
+  );
+  filter: blur(20px);
+  opacity: 0.5;
+}
+
 .boot-logo.boot-logo--fullscreen img {
+  position: relative;
+  z-index: 1;
   display: block;
-  width: min(48vw, 420px);
+  width: var(--boot-logo-col-w);
   height: auto;
   max-height: 38vh;
-  filter: drop-shadow(0 0 30px rgba(255, 26, 26, 0.18));
+  filter: drop-shadow(0 0 16px rgba(255, 45, 38, 0.22)) drop-shadow(0 0 40px rgba(200, 25, 20, 0.1));
 }
 
 /* 机密区：纯黑底、无辉光；仅斜纹条与文字笔画带淡红辉 */
 .boot-classified-bar {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: var(--boot-logo-col-w);
+  max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   border: none;
   background: #000;
@@ -830,11 +901,14 @@ button.light:focus-visible {
 .boot-classified-label {
   margin: 0;
   text-align: center;
-  font-family: var(--font-jp), var(--font-display), sans-serif;
-  font-size: clamp(1.05rem, 3.2vw, 1.45rem);
+  font-family: var(--font-han), var(--font-jp), var(--font-display), sans-serif;
+  /* 单行不折行；用视口宽度估算两字+字距横向占用，避免 cqw 与父级宽度循环 */
+  white-space: nowrap;
+  line-height: 1;
+  font-size: clamp(3.75rem, min(15rem, calc((var(--boot-logo-col-w) - 1.5rem) / 2.42)), 15rem);
   font-weight: 700;
-  letter-spacing: 0.45em;
-  padding: 0.85rem 0.85rem 0.9rem;
+  letter-spacing: 0.35em;
+  padding: clamp(0.5rem, 3vmin, 1.25rem) clamp(0.35rem, 2vmin, 1rem);
   color: var(--status-danger);
   background: transparent;
   box-shadow: none;
