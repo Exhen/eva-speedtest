@@ -776,6 +776,18 @@ button.light:focus-visible {
   font-family: var(--font-han), var(--font-body);
 }
 
+.footer-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.footer-note a:hover,
+.footer-note a:focus-visible,
+.footer-note a:visited {
+  color: inherit;
+}
+
 .boot-overlay {
   position: fixed;
   inset: 0;
