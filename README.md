@@ -3,7 +3,7 @@
 ## Demo
 
 ![preview](assets/preview.png)
-
+[Live Demo](https://www.6ili6ili.com/tools/eva-speedtest/)
 
 ## How to use
 
